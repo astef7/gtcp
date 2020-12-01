@@ -13,6 +13,7 @@ Incomming connections are handled purely asynchronously by acceptor module (gtcp
 Acceptor can work in one of two pre-determined modes:
 - with asynchronous connection handlers (gtcp_async_srv)
 - with full-duplex connection handler (gtcp_vctr_srv, gtcp_vctr_sender, gtcp_vctr_receiver)
+
 The mode is defined in gtcp_acpt (param. SERVER_CREATION_FUN).  
 
 Messages over connections are expected to have length prefix. The size of the length prefix is defined in gtcp_async_srv/gtcp_vctr_receiver in par.PFX_LEN.
