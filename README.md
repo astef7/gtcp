@@ -1,7 +1,6 @@
 ## gtcp
-=====
-
-GTCP is a simple skeleton for TCP asynchronous socket server using Erlang's new ["socket" module](https://erlang.org/doc/man/socket.html).
+--------
+This is a simple skeleton for TCP asynchronous socket server using Erlang's new ["socket" module](https://erlang.org/doc/man/socket.html).
 
 I use gtcp for various experiments with handling connection-oriented applications like card switches (ISO8583 protocol) or HSM (like Thales9000).
 
@@ -58,7 +57,7 @@ gtcp_acpt:which_children(). -> dynamic children
 gtcp_acpt:which_children(top). -> top-level supervisor
 ```
 
-### Build
+###Build
 -----
 
     $ rebar3 compile
