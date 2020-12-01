@@ -1,6 +1,6 @@
 ## gtcp
 --------
-This is a simple skeleton for TCP asynchronous socket server using Erlang's new ["socket" module](https://erlang.org/doc/man/socket.html).
+This is simple skeleton for TCP asynchronous socket server using Erlang's new ["socket" module](https://erlang.org/doc/man/socket.html).
 
 I use gtcp for various experiments with handling connection-oriented applications like card switches (ISO8583 protocol) or HSM (like Thales9000).
 
