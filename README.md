@@ -58,7 +58,7 @@ gtcp_acpt:which_children(). -> dynamic children
 gtcp_acpt:which_children(top). -> top-level supervisor
 ```
 
-###Build
+### Build
 -----
 
     $ rebar3 compile
