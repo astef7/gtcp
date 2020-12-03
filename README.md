@@ -6,7 +6,7 @@ I use gtcp for various experiments with handling connection-oriented application
 
 ### Overview
 --------
-TCP server starts at 127.0.0.1 and port defined in gtcp_acpt (param. PORT).
+TCP server starts at 127.0.0.1 and port defined in gtcp (param. PORT).
 
 Incomming connections are handled purely asynchronously by acceptor module (gtcp_acpt, as gen_server). Each accepted connection is handled by new process (as gen_server) with dynamic supervision pattern.
 
@@ -16,7 +16,7 @@ Acceptor can work in one of two pre-determined modes:
 
 The mode is defined in gtcp_acpt (param. SERVER_CREATION_FUN).  
 
-Messages over connections are expected to have length prefix. The size of the length prefix is defined in gtcp_async_srv/gtcp_vctr_receiver in par.PFX_LEN.
+Messages over connections are expected to have length prefix. The size of the length prefix is defined in gtcp in par.PFX_LEN.
 
 Socket read is handled by Receiver (gtcp_async_server or gtcp_vctr_receiver, depending on mode). Receiver function reads incomming socket data in chunks (par. BLOCK_SIZE). Receive is asynchronous. On each internal "select" message from socket module, Receiver parses block of data decomposing full messages, until buffer is exhausted. This initiates new read request on the socket.
 
@@ -28,6 +28,11 @@ In full-duplex mode, socket read is handled concurrently with send by separate p
 
 ### Testing
 -------
+Start server via rebar3:
+```
+rebar3 shell
+```
+
 On the Erlang prompt:
 
 Client connect with automatic length prefix handling:

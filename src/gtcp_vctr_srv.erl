@@ -17,12 +17,9 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 	 terminate/2, code_change/3, format_status/2]).
 
--export([generate_unique_name/2]).
-
-
--define(PFX_LEN,2).
--define(BLOCK_SIZE,64000).
--define(SEND_TIMEOUT,5).
+%% -define(PFX_LEN,2).
+%% -define(BLOCK_SIZE,64000).
+%% -define(SEND_TIMEOUT,5).
 -define(SERVER, ?MODULE).
 
 -record(state, {snd,rcv,sck,n}).
@@ -42,7 +39,7 @@
 	  {error, Error :: term()} |
 	  ignore.
 start_link(SCK,N) ->
-    gen_server:start_link({local,gtcp_acpt:generate_unique_name(?MODULE,N)}, ?MODULE, [SCK,N], []).
+    gen_server:start_link({local,gtcp:generate_unique_name(?MODULE,N)}, ?MODULE, [SCK,N], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -181,10 +178,10 @@ format_status(_Opt, Status) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
--spec generate_unique_name(TYPE :: atom(), N :: integer()) -> atom().
-generate_unique_name(vctr,N) ->
-    list_to_atom("gtcp_vctr_"++integer_to_list(N));
-generate_unique_name(sender,N) ->
-    list_to_atom("gtcp_vctr_"++integer_to_list(N)++"_snd");
-generate_unique_name(receiver,N) ->
-    list_to_atom("gtcp_vctr_"++integer_to_list(N)++"_rcv").    
+%% -spec generate_unique_name(TYPE :: atom(), N :: integer()) -> atom().
+%% generate_unique_name(vctr,N) ->
+%%     list_to_atom("gtcp_vctr_"++integer_to_list(N));
+%% generate_unique_name(sender,N) ->
+%%     list_to_atom("gtcp_vctr_"++integer_to_list(N)++"_snd");
+%% generate_unique_name(receiver,N) ->
+%%     list_to_atom("gtcp_vctr_"++integer_to_list(N)++"_rcv").    

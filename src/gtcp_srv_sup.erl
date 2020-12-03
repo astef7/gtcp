@@ -65,9 +65,12 @@ init([]) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
--spec add_async_srv(SCK :: term(), N :: integer()) -> pid().
+-spec add_async_srv(SCK :: term(), N :: integer()) -> 
+	  {ok,supervisor:child()} |
+	  {ok,supervisor:child(),term()} |
+	  {error,term()}.
 add_async_srv(SCK,N)->
-    AChild = #{id => gtcp_acpt:generate_unique_name(gtcp_async_srv,N),
+    AChild = #{id => gtcp:generate_unique_name(gtcp_async_srv,N),
 	       start => {gtcp_async_srv, start_link, [SCK,N]},
 	       restart => temporary,
 	       shutdown => 5000,
@@ -76,9 +79,12 @@ add_async_srv(SCK,N)->
     logger:info("adding child [async_srv] CHD=~p~n",[AChild]),
     supervisor:start_child(?MODULE,AChild).
 
--spec add_fduplex_srv(SCK :: term(), N :: integer()) -> pid().
+-spec add_fduplex_srv(SCK :: term(), N :: integer()) ->
+	  {ok,supervisor:child()} |
+	  {ok,supervisor:child(),term()} |
+	  {error,term()}.
 add_fduplex_srv(SCK,N)->
-    AChild = #{id => gtcp_vctr_srv:generate_unique_name(vctr,N),
+    AChild = #{id => gtcp:generate_unique_name(vctr,N),
 	       start => {gtcp_vctr_srv, start_link, [SCK,N]},
 	       restart => temporary,
 	       shutdown => 5000,
@@ -87,9 +93,12 @@ add_fduplex_srv(SCK,N)->
     logger:info("adding child [fduplex_srv] CHD=~p~n",[AChild]),
     supervisor:start_child(?MODULE,AChild).
 
--spec add_fduplex_sender(VCTR :: pid(), SCK :: term(), N :: integer()) -> pid().
+-spec add_fduplex_sender(VCTR :: pid(), SCK :: term(), N :: integer()) ->
+	  {ok,supervisor:child()} |
+	  {ok,supervisor:child(),term()} |
+	  {error,term()}.
 add_fduplex_sender(VCTR,SCK,N)->
-    AChild = #{id => gtcp_vctr_srv:generate_unique_name(sender,N),
+    AChild = #{id => gtcp:generate_unique_name(sender,N,"_snd"),
 	       start => {gtcp_vctr_sender, start_link, [VCTR,SCK,N]},
 	       restart => temporary,
 	       shutdown => 5000,
@@ -98,9 +107,12 @@ add_fduplex_sender(VCTR,SCK,N)->
     logger:info("adding child [fduplex_sender] CHD=~p~n",[AChild]),
     supervisor:start_child(?MODULE,AChild).
 
--spec add_fduplex_receiver(VCTR :: pid(), SENDER :: pid(), SCK :: term(), N :: integer()) -> pid().
+-spec add_fduplex_receiver(VCTR :: pid(), SENDER :: pid(), SCK :: term(), N :: integer()) ->
+	  {ok,supervisor:child()} |
+	  {ok,supervisor:child(),term()} |
+	  {error,term()}.
 add_fduplex_receiver(VCTR,SENDER,SCK,N)->
-    AChild = #{id => gtcp_vctr_srv:generate_unique_name(receiver,N),
+    AChild = #{id => gtcp:generate_unique_name(receiver,N,"_rcv"),
 	       start => {gtcp_vctr_receiver, start_link, [VCTR,SENDER,SCK,N]},
 	       restart => temporary,
 	       shutdown => 5000,

@@ -38,7 +38,7 @@
 	  {error, Error :: term()} |
 	  ignore.
 start_link(VCTR,SCK,N) ->
-    gen_server:start_link({local,gtcp_acpt:generate_unique_name(?MODULE,N)}, ?MODULE, [VCTR,SCK], []).
+    gen_server:start_link({local,gtcp:generate_unique_name(?MODULE,N,"_snd")}, ?MODULE, [VCTR,SCK], []).
 
 %%%===================================================================
 %%% gen_server callbacks

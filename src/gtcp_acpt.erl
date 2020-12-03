@@ -18,32 +18,11 @@
 	 terminate/2, code_change/3, format_status/2]).
 
 -define(SERVER, ?MODULE).
--define(PORT, 8091).
--define(DEFAULT_LENGTH_PFX,2).
+%%-define(PORT, 8091).
+%%-define(DEFAULT_LENGTH_PFX,2).
 -define(SERVER_CREATION_FUN,add_fduplex_srv). %% [add_async_srv | add_fduplex_srv]
 
 -record(state, {lsck,select,n=0}).
-
-%%%===================================================================
-%%% API
-%%%===================================================================
--export([connect/0,connect/1,close/1,send/2]).
--export([which_children/0,which_children/1]).
--export([generate_unique_name/2]).
-
-connect()->
-    gen_tcp:connect({127,0,0,1},?PORT,[{active,true},{packet,?DEFAULT_LENGTH_PFX},binary]).
-connect(raw)->
-    gen_tcp:connect({127,0,0,1},?PORT,[{active,true},binary]).
-close(SCK)->
-    gen_tcp:close(SCK).
-send(SCK,Data)->
-    gen_tcp:send(SCK,Data).
-
-which_children()->
-    supervisor:which_children(gtcp_srv_sup).
-which_children(top)->
-    supervisor:which_children(gtcp_sup).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -76,7 +55,7 @@ init([]) ->
     process_flag(trap_exit, true),
     {ok,LS} = socket:open(inet,stream,tcp),
     ok = socket:setopt(LS,socket,reuseaddr,true),
-    {ok,_PORT} = socket:bind(LS,#{family => inet, port => ?PORT, addr => {127,0,0,1}}),
+    {ok,_PORT} = socket:bind(LS,#{family => inet, port => gtcp:get_port(), addr => {127,0,0,1}}),
 
     ok = socket:listen(LS),
 
@@ -190,13 +169,8 @@ format_status(_Opt, Status) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
--spec generate_unique_name(Name :: atom(),N :: integer()) -> atom().
-generate_unique_name(Name,N) ->
-    list_to_atom(atom_to_list(Name)++integer_to_list(N)).    
-
--spec accept(LS :: term(), N :: integer()) -> 
-	  {ok,PID :: pid()} | 
-	  {select, SI :: term()} | 
+-spec accept(LS :: socket:socket(), N :: integer()) -> 
+	  {select, SI :: term(), N :: integer()} | 
 	  {error,ER :: term()}.
 accept(LS,N) ->
     case socket:accept(LS,nowait) of
@@ -205,9 +179,6 @@ accept(LS,N) ->
 	    {ok,PID}=apply(gtcp_srv_sup,?SERVER_CREATION_FUN,[SCK,N]),
 	    logger:info("accept: worker created, PID=~p.",[PID]),
 	    erlang:monitor(process,PID),
-	    
-	    %% ok = socket:setopt(SCK,otp,controlling_process,PID),
-	    %% io:format(">>> handle_info[3]: after creating worker, X=~p~n",[X]),
 	    
 	    PID ! {initialization_done},
 	    
@@ -218,4 +189,4 @@ accept(LS,N) ->
 
 	{error,ER} -> logger:error("accept: error ER=~p",[ER]),
 		      error(ER)
-	end.
+    end.

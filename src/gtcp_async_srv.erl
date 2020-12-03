@@ -18,14 +18,12 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 	 terminate/2, code_change/3, format_status/2]).
 
--export([worker/2]).
-
--define(PFX_LEN,2).
--define(BLOCK_SIZE,64000).
--define(SEND_TIMEOUT,5).
+%% -define(PFX_LEN,2).
+%% -define(BLOCK_SIZE,64000).
+%% -define(SEND_TIMEOUT,5).
 -define(SERVER, ?MODULE).
 
--record(io, {buff,select}).
+-record(io, {buff,select,responser}).
 -record(state, {sck,io = #io{}}).
 
 
@@ -43,7 +41,7 @@
 	  {error, Error :: term()} |
 	  ignore.
 start_link(SCK,N) ->
-    gen_server:start_link({local,gtcp_acpt:generate_unique_name(?MODULE,N)}, ?MODULE, [SCK], []).
+    gen_server:start_link({local,gtcp:generate_unique_name(?MODULE,N)}, ?MODULE, [SCK], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -62,7 +60,7 @@ start_link(SCK,N) ->
 	  ignore.
 init([SCK]) ->
     process_flag(trap_exit, true),
-    {ok, #state{sck=SCK}}.
+    {ok, #state{sck=SCK,io=#io{responser=self()}}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -109,34 +107,34 @@ handle_cast(_Request, State) ->
 	  {noreply, NewState :: term(), hibernate} |
 	  {stop, Reason :: normal | term(), NewState :: term()}.
 
-handle_info({initialization_done}, #state{sck=SCK}=State) ->
+handle_info({initialization_done}, #state{sck=SCK,io=IO}=State) ->
     logger:info("handle_info: INITIALIZATION DONE.",[]),
 
     ok = socket:setopt(SCK,tcp,nodelay,true),
 
 %%    ok = socket:setopt(SCK,tcp,keepalive,true),
 %%    ok = socket:setopt(SCK,tcp,linger,true),
-    {noreply,State#state{io = #io{buff= <<>>}},0};
+    {noreply,State#state{io = IO#io{buff= <<>>}},0};
 
-handle_info(timeout,State)->
+handle_info(timeout,#state{sck=SCK,io=IO}=State)->
     logger:info("handle_info: timeout->starting new message.",[]),
-    case process_event(State) of
-	{datareq,State1} ->
-	    {noreply,State1,0};
-	{pending,State1} ->
-	    {noreply,State1};
+    case gtcp:process_event(SCK,IO) of
+	{datareq,IORet} ->
+	    {noreply,State#state{io=IORet},0};
+	{pending,IORet} ->
+	    {noreply,State#state{io=IORet}};
 	{error,ER} ->
 	    logger:error("handle_info: error=~p. Stopping as normal",[ER]),
 	    {stop,normal,State}
     end;
 
-handle_info({'$socket',_SCK,select,_REF}, State) ->
+handle_info({'$socket',_SCK,select,_REF}, #state{sck=SCK,io=IO}=State) ->
     logger:info("handle_info: select ...",[]),
-    case process_event(State) of
-	{datareq,State1} ->
-	    {noreply,State1,0};
-	{pending,State1} ->
-	    {noreply,State1};
+    case gtcp:process_event(SCK,IO) of
+	{datareq,IORet} ->
+	    {noreply,State#state{io=IORet},0};
+	{pending,IORet} ->
+	    {noreply,State#state{io=IORet}};
 	{error,ER} ->
 	    logger:error("handle_info: error=~p. Stopping as normal",[ER]),
 	    {stop,normal,State}
@@ -144,7 +142,7 @@ handle_info({'$socket',_SCK,select,_REF}, State) ->
 
 handle_info({send_data,RESP}, #state{sck=SCK}=State) ->
     logger:info("handle_info: send_data REQ, data (response)=~p",[RESP]),
-    case send_message(SCK,RESP) of
+    case gtcp:send_message(SCK,RESP) of
 	ok ->
 	    ok;
 	{error,ER} ->
@@ -225,72 +223,72 @@ format_status(_Opt, Status) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
--spec process_event(State :: term()) ->
-	  {datareq,State :: term()} | 
-	  {pending,State :: term()} | 
-	  {error,ER :: term()}.
-process_event(#state{sck=SCK,io=IO}=State) ->
-    logger:info("process_event...",[]),
-    case recv_bytes(SCK,IO) of
-	{ok,#io{buff=BUFF}=IO2} ->
-	    logger:info("Completed MSG/immediate, BUFF=~p, IO=~p",[BUFF,IO2]),
-	    {datareq,IO3} = process_buffer(IO2),
-	    {datareq, State#state{io=IO3}};
+%% -spec process_event(State :: term()) ->
+%% 	  {datareq,State :: term()} | 
+%% 	  {pending,State :: term()} | 
+%% 	  {error,ER :: term()}.
+%% process_event(#state{sck=SCK,io=IO}=State) ->
+%%     logger:info("process_event...",[]),
+%%     case recv_bytes(SCK,IO) of
+%% 	{ok,#io{buff=BUFF}=IO2} ->
+%% 	    logger:info("Completed MSG/immediate, BUFF=~p, IO=~p",[BUFF,IO2]),
+%% 	    {datareq,IO3} = process_buffer(IO2),
+%% 	    {datareq, State#state{io=IO3}};
 
-	{pending,IO2} ->
-	    logger:info("Pending IO=~p",[IO2]),
-	    {pending, State#state{io=IO2}};
+%% 	{pending,IO2} ->
+%% 	    logger:info("Pending IO=~p",[IO2]),
+%% 	    {pending, State#state{io=IO2}};
 
-	{error,ER} ->
-	    logger:error("Error=~p",[ER]),
-	    {error,ER}
-    end.
+%% 	{error,ER} ->
+%% 	    logger:error("Error=~p",[ER]),
+%% 	    {error,ER}
+%%     end.
 
--spec process_buffer(IO :: term()) ->
-	  {datareq,IO :: term()}.
-process_buffer(#io{buff=BUFF}=IO) when is_binary(BUFF) ->
-    io:format("process_buffer, IO=~p",[IO]),
-    case erlang:byte_size(BUFF) - ?PFX_LEN > 0 of
-	true ->
-	    <<PFX:?PFX_LEN/binary,REST1/binary>> = BUFF,
-	    LEN = binary:decode_unsigned(PFX),
-	    io:format("process_buffer, PFX=~p, LEN=~p,len_rest=~p~n",[PFX,LEN,erlang:byte_size(REST1)]),
-	    case (erlang:byte_size(REST1) - LEN) >= 0 of
-		true ->
-		    <<MSG:LEN/binary,REST2/binary>> = REST1,
-		    spawn(?MODULE,worker,[self(),MSG]),
-		    process_buffer(IO#io{buff=REST2});
-		false ->
-		    {datareq,IO}
-		end;
-	false ->
-	    {datareq,IO}
-    end.
+%% -spec process_buffer(IO :: term()) ->
+%% 	  {datareq,IO :: term()}.
+%% process_buffer(#io{buff=BUFF}=IO) when is_binary(BUFF) ->
+%%     io:format("process_buffer, IO=~p",[IO]),
+%%     case erlang:byte_size(BUFF) - ?PFX_LEN > 0 of
+%% 	true ->
+%% 	    <<PFX:?PFX_LEN/binary,REST1/binary>> = BUFF,
+%% 	    LEN = binary:decode_unsigned(PFX),
+%% 	    io:format("process_buffer, PFX=~p, LEN=~p,len_rest=~p~n",[PFX,LEN,erlang:byte_size(REST1)]),
+%% 	    case (erlang:byte_size(REST1) - LEN) >= 0 of
+%% 		true ->
+%% 		    <<MSG:LEN/binary,REST2/binary>> = REST1,
+%% 		    spawn(?MODULE,worker,[self(),MSG]),
+%% 		    process_buffer(IO#io{buff=REST2});
+%% 		false ->
+%% 		    {datareq,IO}
+%% 		end;
+%% 	false ->
+%% 	    {datareq,IO}
+%%     end.
 
--spec recv_bytes(SCK :: term(), IO :: term()) ->
-	  {ok,IO :: term()} | {pending,IO :: term()} | {error,ER :: term()}.
-recv_bytes(SCK,#io{buff=BUFF}=IO) ->
-    case socket:recv(SCK,?BLOCK_SIZE,nowait) of
-	{ok,{Chunk,SI2}} -> 
-	    logger:info("got PARTIAL data and SI, data=~p",[Chunk]),
-	    {ok,IO#io{select=SI2,buff= <<BUFF/binary,Chunk/binary>>}};
-	{ok,Chunk} -> 
-	    logger:info("got data,full,data=~p",[Chunk]),
-	    {ok,IO#io{select=none,buff=Chunk}};
-	{select,SI2} -> 
-	    logger:info("got SI=~p",[SI2]),
-	    {pending,IO#io{select=SI2}};
-	{error,ER} -> 
-	    logger:info("got ER=~p",[ER]),
-	    {error,ER}
-    end.
+%% -spec recv_bytes(SCK :: term(), IO :: term()) ->
+%% 	  {ok,IO :: term()} | {pending,IO :: term()} | {error,ER :: term()}.
+%% recv_bytes(SCK,#io{buff=BUFF}=IO) ->
+%%     case socket:recv(SCK,?BLOCK_SIZE,nowait) of
+%% 	{ok,{Chunk,SI2}} -> 
+%% 	    logger:info("got PARTIAL data and SI, data=~p",[Chunk]),
+%% 	    {ok,IO#io{select=SI2,buff= <<BUFF/binary,Chunk/binary>>}};
+%% 	{ok,Chunk} -> 
+%% 	    logger:info("got data,full,data=~p",[Chunk]),
+%% 	    {ok,IO#io{select=none,buff=Chunk}};
+%% 	{select,SI2} -> 
+%% 	    logger:info("got SI=~p",[SI2]),
+%% 	    {pending,IO#io{select=SI2}};
+%% 	{error,ER} -> 
+%% 	    logger:info("got ER=~p",[ER]),
+%% 	    {error,ER}
+%%     end.
 
--spec send_message(SCK :: term(), Data :: binary()) -> term().
-send_message(SCK,Data) ->
-    LEN = length(binary:bin_to_list(Data)),
-    socket:send(SCK,<<LEN:(?PFX_LEN*8)/integer-unsigned,Data/binary>>,?SEND_TIMEOUT).
+%% -spec send_message(SCK :: term(), Data :: binary()) -> term().
+%% send_message(SCK,Data) ->
+%%     LEN = length(binary:bin_to_list(Data)),
+%%     socket:send(SCK,<<LEN:(?PFX_LEN*8)/integer-unsigned,Data/binary>>,?SEND_TIMEOUT).
 
--spec worker(SRV :: pid(), MSG :: binary()) -> no_return().
-worker(SRV, MSG)->
-    logger:info("worker called for MSG=~p",[MSG]),
-    SRV ! {send_data,<<"RESPONSE:",MSG/binary>>}.
+%% -spec worker(SRV :: pid(), MSG :: binary()) -> no_return().
+%% worker(SRV, MSG)->
+%%     logger:info("worker called for MSG=~p",[MSG]),
+%%     SRV ! {send_data,<<"RESPONSE:",MSG/binary>>}.
