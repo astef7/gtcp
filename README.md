@@ -37,30 +37,30 @@ On the Erlang prompt:
 
 Client connect with automatic length prefix handling:
 ```
-{ok,S}=gtcp_acpt:connect().
+{ok,S}=gtcp:connect().
 ```
 
 Client connect with no length prefix, subsequent messages have to manually handle length prefix. This is useful for debugging chunk parsing on the server side:
 ```
-{ok,S}=gtcp_acpt:connect(raw).
+{ok,S}=gtcp:connect(raw).
 ```
 
 Assuming client connection with automatic length prefix handling:
 ```
-gtcp_acpt:send(S,<<"example message">>).
+gtcp:send(S,<<"example message">>).
 ```
 
 Assuming connection with manual length prefix handling:
 ```
-gtcp_acpt:send(S,<<0,15,"example message">>).
+gtcp:send(S,<<0,15,"example message">>).
 ```
 
 Responses to command-line client can be traced by flush().
 
 There are additional functions for checking dynamic supervision of handlers:
 ```
-gtcp_acpt:which_children(). -> dynamic children
-gtcp_acpt:which_children(top). -> top-level supervisor
+gtcp:which_children(). -> dynamic children
+gtcp:which_children(top). -> top-level supervisor
 ```
 
 ### Build
